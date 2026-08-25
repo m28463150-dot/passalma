@@ -43,6 +43,19 @@ public final class SupabaseRides {
         CLIENT.newCall(request).enqueue(callback(result));
     }
 
+    public static void createRide(Context context, String rideId, String service, String pickupName,
+                                  double pickupLat, double pickupLng, String destinationName,
+                                  double destinationLat, double destinationLng, double distanceKm,
+                                  double price, Result result) {
+        String body = "{\"id\":\"" + escape(rideId) + "\",\"customer_id\":\"" + SupabaseAuth.getUserId(context)
+                + "\",\"service\":\"" + escape(service) + "\",\"pickup_name\":\"" + escape(pickupName)
+                + "\",\"pickup_lat\":" + pickupLat + ",\"pickup_lng\":" + pickupLng
+                + ",\"destination_name\":\"" + escape(destinationName) + "\",\"destination_lat\":" + destinationLat
+                + ",\"destination_lng\":" + destinationLng + ",\"distance_km\":" + distanceKm + ",\"price\":" + price + "}";
+        Request request = request(context, "/rest/v1/rides", body, "POST");
+        CLIENT.newCall(request).enqueue(callback(result));
+    }
+
     public static void updateDriverLocation(Context context, double latitude, double longitude,
                                             boolean working, Result result) {
         String body = "{\"driver_id\":\"" + SupabaseAuth.getUserId(context) + "\",\"location\":\"SRID=4326;POINT("

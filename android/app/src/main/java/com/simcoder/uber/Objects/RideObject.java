@@ -23,6 +23,8 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
 import com.google.gson.JsonObject;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
+import com.simcoder.uber.SupabaseRides;
 import com.simcoder.uber.Utils.SendNotification;
 import com.simcoder.uber.Utils.Utils;
 
@@ -233,46 +235,21 @@ public class RideObject  implements Cloneable{
      * firebase functions and only then will it be available to the drivers.
      */
     public void postRideInfo(){
-        rideRef = FirebaseDatabase.getInstance().getReference().child("ride_info");
-
-        id =  rideRef.push().getKey();
-        String customerId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        HashMap map = new HashMap();
-        map.put("service", requestService);
-        map.put("state", 0);
-        map.put("customerId", customerId);
-        map.put("ended", false);
-
-        map.put("calculated_duration", duration);
-        map.put("calculated_distance", distance);
-        map.put("calculated_Price", Utils.rideCostEstimate(distance, duration));
-        map.put("rating_calculated", false);
-        map.put("rating", -1);
-        map.put("creation_timestamp", ServerValue.TIMESTAMP);
-        map.put("destination/name", destination.getName());
-        map.put("destination/lat", destination.getCoordinates().latitude);
-        map.put("destination/lng", destination.getCoordinates().longitude);
-        map.put("pickup/name", pickup.getName());
-        map.put("pickup/lat", pickup.getCoordinates().latitude);
-        map.put("pickup/lng", pickup.getCoordinates().longitude);
-
-        rideRef.child(id).updateChildren(map);
-        rideRef = rideRef.child(id);
+        id = java.util.UUID.randomUUID().toString();
+        double price = Utils.rideCostEstimate(distance, duration);
+        SupabaseRides.createRide(activity, id, requestService, pickup.getName(), pickup.getCoordinates().latitude,
+                pickup.getCoordinates().longitude, destination.getName(), destination.getCoordinates().latitude,
+                destination.getCoordinates().longitude, distance, price, new SupabaseRides.Result() {
+                    @Override public void onSuccess(String payload) { }
+                    @Override public void onError(String message) { Toast.makeText(activity, message, Toast.LENGTH_LONG).show(); }
+                });
     }
 
     /**
      * When ride is ended this function must be called in order to finish a ride
      */
     public void recordRide(){
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference().child("ride_info").child(id);
-
-        HashMap map = new HashMap();
-        map.put("ended", true);
-        map.put("state", 3);
-        map.put("distance", rideDistance);
-        map.put("timestamp", ServerValue.TIMESTAMP);
-
-        ref.updateChildren(map);
+        SupabaseRides.updateRideStatus(activity, id, "completed", noOpResult());
 
         new SendNotification("Make sure to rate the driver and pay for the ride","ride ended", mCustomer.getNotificationKey());
     }
@@ -282,13 +259,7 @@ public class RideObject  implements Cloneable{
      * know the state of the ride.
      */
     public void pickedCustomer(){
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference().child("ride_info").child(id);
-
-        HashMap map = new HashMap();
-        map.put("state", 2);
-        map.put("timestamp_picked_customer", ServerValue.TIMESTAMP);
-
-        ref.updateChildren(map);
+        SupabaseRides.updateRideStatus(activity, id, "picked_up", noOpResult());
     }
 
 
@@ -309,13 +280,14 @@ public class RideObject  implements Cloneable{
      */
     public void cancelRide(){
         if(id == null){return;}
-        DatabaseReference ref = FirebaseDatabase.getInstance().getReference().child("ride_info").child(id);
+        SupabaseRides.updateRideStatus(activity, id, "cancelled", noOpResult());
+    }
 
-        HashMap map = new HashMap();
-        map.put("state", -1);
-        map.put("cancelled", true);
-
-        ref.updateChildren(map);
+    private SupabaseRides.Result noOpResult() {
+        return new SupabaseRides.Result() {
+            @Override public void onSuccess(String payload) { }
+            @Override public void onError(String message) { }
+        };
     }
 
     /**

@@ -125,7 +125,6 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
     private LinearLayout mCustomerInfo, mBringUpBottomLayout;
 
     private TextView mCustomerName;
-    DatabaseReference mUser;
 
     RideObject mCurrentRide;
 
@@ -217,7 +216,6 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
 
-        mUser = FirebaseDatabase.getInstance().getReference().child("Users").child("Drivers").child(FirebaseAuth.getInstance().getUid());
         mCustomerInfo = findViewById(R.id.customerInfo);
 
         mBringUpBottomLayout = findViewById(R.id.bringUpBottomLayout);
