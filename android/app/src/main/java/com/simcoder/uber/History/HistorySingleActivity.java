@@ -10,6 +10,9 @@ import androidx.appcompat.widget.Toolbar;
 
 import android.os.Bundle;
 import android.view.View;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RatingBar;
@@ -44,6 +47,9 @@ import com.simcoder.uber.Objects.RideObject;
 import com.simcoder.uber.R;
 
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +79,8 @@ public class HistorySingleActivity extends AppCompatActivity implements OnMapRea
     private DatabaseReference historyRideInfoDb;
 
     private GoogleMap mMap;
+    private WebView leafletMap;
+    private boolean leafletReady;
 
     LinearLayout mRatingBarContainer;
 
@@ -81,6 +89,18 @@ public class HistorySingleActivity extends AppCompatActivity implements OnMapRea
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_history_single);
+
+        leafletMap = findViewById(R.id.leaflet_map);
+        WebSettings leafletSettings = leafletMap.getSettings();
+        leafletSettings.setJavaScriptEnabled(true);
+        leafletSettings.setDomStorageEnabled(true);
+        leafletMap.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                leafletReady = true;
+            }
+        });
+        leafletMap.loadUrl("file:///android_asset/customer_map.html");
 
         polyline = new ArrayList<>();
 
@@ -110,6 +130,33 @@ public class HistorySingleActivity extends AppCompatActivity implements OnMapRea
         historyRideInfoDb = FirebaseDatabase.getInstance().getReference().child("ride_info").child(rideId);
         getRideInformation();
         setupToolbar();
+    }
+
+    private void updateLeafletMarker(String id, LatLng coordinates, String label) {
+        if (!leafletReady || coordinates == null) {
+            return;
+        }
+        leafletMap.evaluateJavascript("javascript:setMarker('" + id + "', "
+                + coordinates.latitude + "," + coordinates.longitude + ","
+                + JSONObject.quote(label) + ");", null);
+    }
+
+    private void drawLeafletRoute(List<LatLng> points) {
+        if (!leafletReady || points == null || points.isEmpty()) {
+            return;
+        }
+        JSONArray route = new JSONArray();
+        try {
+            for (LatLng point : points) {
+                JSONArray coordinates = new JSONArray();
+                coordinates.put(point.latitude);
+                coordinates.put(point.longitude);
+                route.put(coordinates);
+            }
+        } catch (JSONException exception) {
+            return;
+        }
+        leafletMap.evaluateJavascript("javascript:drawRoute(" + route + ");", null);
     }
 
     /**
@@ -235,6 +282,8 @@ public class HistorySingleActivity extends AppCompatActivity implements OnMapRea
 
             mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_finish)).position(mRide.getDestination().getCoordinates()).title("destination"));
             mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_start)).position(mRide.getPickup().getCoordinates()).title("pickup"));
+            updateLeafletMarker("destination", mRide.getDestination().getCoordinates(), "Destination");
+            updateLeafletMarker("pickup", mRide.getPickup().getCoordinates(), "Départ");
         }
     }
 
@@ -273,6 +322,7 @@ public class HistorySingleActivity extends AppCompatActivity implements OnMapRea
 
             ArrayList<LatLng> directionPositionList = route.getLegList().get(0).getDirectionPoint();
             Polyline polyline = mMap.addPolyline(DirectionConverter.createPolyline(this, directionPositionList, 5, Color.BLACK));
+            drawLeafletRoute(directionPositionList);
             this.polyline.add(polyline);
             setCameraWithCoordinationBounds(route);
 

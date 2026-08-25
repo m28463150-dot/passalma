@@ -26,6 +26,10 @@
             android:layout_height="200dp"
             android:name="com.google.android.gms.maps.SupportMapFragment"
             android:id="@+id/map"/>
+        <include
+            layout="@layout/leaflet_map"
+            android:layout_width="match_parent"
+            android:layout_height="200dp" />
 
         <LinearLayout
             android:layout_width="match_parent"

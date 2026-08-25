@@ -45,11 +45,25 @@
     async function search(query) {
       try {
         const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=fr&q=' + encodeURIComponent(query);
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) throw new Error('Geocoder request failed');
         const places = await response.json();
-        suggestions.innerHTML = places.map(place =>
-          '<button type="button" data-lat="' + place.lat + '" data-lon="' + place.lon + '" data-name="' + escapeHtml(place.display_name) + '">' + escapeHtml(place.display_name) + '</button>'
-        ).join('');
+        suggestions.innerHTML = '';
+        places.forEach(place => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.dataset.lat = place.lat;
+          button.dataset.lon = place.lon;
+          button.dataset.name = place.display_name;
+          button.textContent = place.display_name;
+          suggestions.appendChild(button);
+        });
+        if (!places.length) {
+          const empty = document.createElement('button');
+          empty.type = 'button';
+          empty.textContent = 'Aucune adresse trouvee';
+          suggestions.appendChild(empty);
+        }
       } catch (error) {
         suggestions.innerHTML = '<button type="button">Recherche indisponible</button>';
       }
@@ -69,9 +83,6 @@
       Android.selectAddress(name, String(lat), String(lon));
     });
 
-    function escapeHtml(value) {
-      return value.replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
-    }
   </script>
 </body>
 </html>

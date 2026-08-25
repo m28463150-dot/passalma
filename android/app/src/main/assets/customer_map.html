@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    #map { background: #eaf5f1; }
+    .leaflet-control-attribution { font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map', { zoomControl: false }).setView([45.75, 4.85], 13);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    const markers = {};
+    let routeLine;
+
+    function setCenter(latitude, longitude, zoom) {
+      map.setView([latitude, longitude], zoom || map.getZoom());
+    }
+    function setMarker(id, latitude, longitude, label) {
+      if (markers[id]) markers[id].setLatLng([latitude, longitude]);
+      else markers[id] = L.marker([latitude, longitude]).addTo(map);
+      if (label) markers[id].bindTooltip(label, { direction: 'top' });
+    }
+    function removeMarker(id) {
+      if (!markers[id]) return;
+      markers[id].remove();
+      delete markers[id];
+    }
+    function clearMarkers() {
+      Object.keys(markers).forEach(removeMarker);
+      if (routeLine) { routeLine.remove(); routeLine = null; }
+    }
+    function drawRoute(points) {
+      if (routeLine) routeLine.remove();
+      routeLine = L.polyline(points, { color: '#0b6e69', weight: 5 }).addTo(map);
+      map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+    }
+  </script>
+</body>
+</html>

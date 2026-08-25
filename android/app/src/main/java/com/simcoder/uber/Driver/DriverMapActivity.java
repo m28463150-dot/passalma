@@ -37,6 +37,9 @@ import androidx.appcompat.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewTreeObserver;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Switch;
@@ -85,6 +88,9 @@ import com.simcoder.uber.R;
 import com.simcoder.uber.Objects.RideObject;
 
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -100,6 +106,8 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
     int MAX_SEARCH_DISTANCE = 20;
 
     private GoogleMap mMap;
+    private WebView leafletMap;
+    private boolean leafletReady;
     Location mLastLocation;
     LocationRequest mLocationRequest;
 
@@ -137,10 +145,51 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
     boolean started = false;
     boolean zoomUpdated = false;
 
+    private void updateLeafletMarker(String id, LatLng coordinates, String label) {
+        if (!leafletReady || coordinates == null) {
+            return;
+        }
+        leafletMap.evaluateJavascript("javascript:setMarker('" + id + "', "
+                + coordinates.latitude + "," + coordinates.longitude + ","
+                + JSONObject.quote(label) + ");", null);
+    }
+
+    private void drawLeafletRoute(List<LatLng> points) {
+        if (!leafletReady || points == null || points.isEmpty()) {
+            return;
+        }
+        JSONArray route = new JSONArray();
+        try {
+            for (LatLng point : points) {
+                JSONArray coordinates = new JSONArray();
+                coordinates.put(point.latitude);
+                coordinates.put(point.longitude);
+                route.put(coordinates);
+            }
+        } catch (JSONException exception) {
+            return;
+        }
+        leafletMap.evaluateJavascript("javascript:drawRoute(" + route + ");", null);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map_driver);
+        leafletMap = findViewById(R.id.leaflet_map);
+        WebSettings leafletSettings = leafletMap.getSettings();
+        leafletSettings.setJavaScriptEnabled(true);
+        leafletSettings.setDomStorageEnabled(true);
+        leafletMap.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                leafletReady = true;
+                if (mLastLocation != null) {
+                    updateLeafletMarker("driver", new LatLng(mLastLocation.getLatitude(), mLastLocation.getLongitude()), "Chauffeur");
+                }
+            }
+        });
+        leafletMap.loadUrl("file:///android_asset/customer_map.html");
 
         Toolbar toolbar = findViewById(R.id.toolbar);
 
@@ -448,6 +497,8 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
             case 1:
                 destinationMarker = mMap.addMarker(new MarkerOptions().position(mCurrentRide.getDestination().getCoordinates()).title("Destination").icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_radio_filled)));
                 pickupMarker = mMap.addMarker(new MarkerOptions().position(mCurrentRide.getPickup().getCoordinates()).title("Pickup").icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_radio)));
+                updateLeafletMarker("destination", mCurrentRide.getDestination().getCoordinates(), "Destination");
+                updateLeafletMarker("pickup", mCurrentRide.getPickup().getCoordinates(), "Pickup");
 
                 mRideStatus.setText(getResources().getString(R.string.picked_customer));
                 mRideStatus.resetSlider();
@@ -790,8 +841,10 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
                     if (!zoomUpdated) {
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
                         mMap.animateCamera(CameraUpdateFactory.zoomTo(16));
+                        leafletMap.evaluateJavascript("javascript:setCenter(" + location.getLatitude() + "," + location.getLongitude() + ",16);", null);
                         zoomUpdated = true;
                     }
+                    updateLeafletMarker("driver", new LatLng(location.getLatitude(), location.getLongitude()), "Chauffeur");
                 }
             }
         }
@@ -908,6 +961,7 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
 
             ArrayList<LatLng> directionPositionList = route.getLegList().get(0).getDirectionPoint();
             Polyline polyline = mMap.addPolyline(DirectionConverter.createPolyline(this, directionPositionList, 5, Color.BLACK));
+            drawLeafletRoute(directionPositionList);
             polylines.add(polyline);
             setCameraWithCoordinationBounds(route);
         }

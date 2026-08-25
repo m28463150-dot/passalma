@@ -54,6 +54,9 @@ import android.view.MenuItem;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
@@ -121,6 +124,8 @@ public class CustomerMapActivity extends AppCompatActivity
             CANCEL_OPTION_MILLISECONDS = 10000;
 
     private GoogleMap mMap;
+    private WebView leafletMap;
+    private boolean leafletReady;
 
     LocationRequest mLocationRequest;
 
@@ -179,6 +184,20 @@ public class CustomerMapActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map_customer);
+        leafletMap = findViewById(R.id.leaflet_map);
+        WebSettings leafletSettings = leafletMap.getSettings();
+        leafletSettings.setJavaScriptEnabled(true);
+        leafletSettings.setDomStorageEnabled(true);
+        leafletMap.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                leafletReady = true;
+                if (currentLocation != null) {
+                    updateLeafletMarker("current", currentLocation.getCoordinates(), "Position actuelle");
+                }
+            }
+        });
+        leafletMap.loadUrl("file:///android_asset/customer_map.html");
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -272,8 +291,10 @@ public class CustomerMapActivity extends AppCompatActivity
             pickupMarker = mMap.addMarker(new MarkerOptions().position(pickupLocation.getCoordinates()).title("Pickup").icon(BitmapDescriptorFactory.fromBitmap(generateBitmap(CustomerMapActivity.this, pickupLocation.getName(), null))));
             mCurrentRide.setPickup(pickupLocation);
             autocompleteFragmentFrom.setText(pickupLocation.getName());
+            updateLeafletMarker("pickup", pickupLocation.getCoordinates(), pickupLocation.getName());
             if (destinationLocation != null) {
                 destinationMarker = mMap.addMarker(new MarkerOptions().position(destinationLocation.getCoordinates()).title("Destination").icon(BitmapDescriptorFactory.fromBitmap(generateBitmap(CustomerMapActivity.this, destinationLocation.getName(), null))));
+                updateLeafletMarker("destination", destinationLocation.getCoordinates(), destinationLocation.getName());
                 bringBottomSheetDown();
             }
 
@@ -285,7 +306,7 @@ public class CustomerMapActivity extends AppCompatActivity
 
 
         bringBottomSheetUp();
-        initPlacesAutocomplete();
+        initAddressSearch();
         initRecyclerView();
         isRequestInProgress();
 
@@ -452,11 +473,11 @@ public class CustomerMapActivity extends AppCompatActivity
     }
 
     /**
-     * Init Places according the updated google api and
-     * listen for user inputs, when a user chooses a place change the values
+    * Listen for address inputs and
+    * update the selected location when a user chooses an address.
      * of destination and destinationLocation so that the user can call a driver
      */
-    void initPlacesAutocomplete() {
+    void initAddressSearch() {
         autocompleteFragmentTo.setOnClickListener(v -> {
             if (requestBol) {
                 return;
@@ -470,6 +491,42 @@ public class CustomerMapActivity extends AppCompatActivity
             }
             startActivityForResult(new Intent(this, AddressSearchActivity.class), 2);
         });
+    }
+
+    private void updateLeafletMarker(String id, LatLng coordinates, String label) {
+        if (!leafletReady || coordinates == null) {
+            return;
+        }
+        String script = "setMarker('" + id + "', " + coordinates.latitude + ", "
+                + coordinates.longitude + ", " + JSONObject.quote(label) + ");";
+        leafletMap.evaluateJavascript("javascript:" + script, null);
+    }
+
+    private void centerLeafletMap(LatLng coordinates, int zoom) {
+        if (!leafletReady || coordinates == null) {
+            return;
+        }
+        leafletMap.evaluateJavascript("javascript:setCenter(" + coordinates.latitude
+                + "," + coordinates.longitude + "," + zoom + ");", null);
+    }
+
+    private void drawLeafletRoute(List<LatLng> points) {
+        if (!leafletReady || points == null || points.isEmpty()) {
+            return;
+        }
+        JSONArray route = new JSONArray();
+        try {
+            for (LatLng point : points) {
+                JSONArray coordinates = new JSONArray();
+                coordinates.put(point.latitude);
+                coordinates.put(point.longitude);
+                route.put(coordinates);
+            }
+        } catch (JSONException exception) {
+            Log.e("LEAFLET_MAP", "Unable to encode route", exception);
+            return;
+        }
+        leafletMap.evaluateJavascript("javascript:drawRoute(" + route + ");", null);
     }
 
     private void showAddressSearchError() {
@@ -839,6 +896,7 @@ public class CustomerMapActivity extends AppCompatActivity
                         float zoomLevel = 17.0f; //This goes up to 21
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
                         mMap.animateCamera(CameraUpdateFactory.zoomTo(zoomLevel));
+                        centerLeafletMap(latLng, (int) zoomLevel);
                         zoomUpdated = true;
                     }
 
@@ -1235,6 +1293,7 @@ public class CustomerMapActivity extends AppCompatActivity
             List<LatLng> directionPositionList = route.getLegList().get(0).getDirectionPoint();
 
             MapAnimator.getInstance().animateRoute(mMap, directionPositionList);
+            drawLeafletRoute(directionPositionList);
 
             setCameraWithCoordinationBounds(route);
         }
@@ -1294,20 +1353,24 @@ public class CustomerMapActivity extends AppCompatActivity
                 mMap.clear();
                 destinationLocation = mLocation;
                 destinationMarker = mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromBitmap(generateBitmap(CustomerMapActivity.this, destinationLocation.getName(), null))).position(destinationLocation.getCoordinates()));
+                updateLeafletMarker("destination", destinationLocation.getCoordinates(), destinationLocation.getName());
                 mCurrentRide.setDestination(destinationLocation);
                 autocompleteFragmentTo.setText(destinationLocation.getName());
                 if (pickupLocation != null) {
                     pickupMarker = mMap.addMarker(new MarkerOptions().position(pickupLocation.getCoordinates()).icon(BitmapDescriptorFactory.fromBitmap(generateBitmap(CustomerMapActivity.this, pickupLocation.getName(), null))));
+                    updateLeafletMarker("pickup", pickupLocation.getCoordinates(), pickupLocation.getName());
                     bringBottomSheetDown();
                 }
             } else if (requestCode == 2) {
                 mMap.clear();
                 pickupLocation = mLocation;
                 pickupMarker = mMap.addMarker(new MarkerOptions().position(pickupLocation.getCoordinates()).icon(BitmapDescriptorFactory.fromBitmap(generateBitmap(CustomerMapActivity.this, pickupLocation.getName(), null))));
+                updateLeafletMarker("pickup", pickupLocation.getCoordinates(), pickupLocation.getName());
                 mCurrentRide.setPickup(pickupLocation);
                 autocompleteFragmentFrom.setText(pickupLocation.getName());
                 if (destinationLocation != null) {
                     destinationMarker = mMap.addMarker(new MarkerOptions().position(destinationLocation.getCoordinates()).icon(BitmapDescriptorFactory.fromBitmap(generateBitmap(CustomerMapActivity.this, destinationLocation.getName(), null))));
+                    updateLeafletMarker("destination", destinationLocation.getCoordinates(), destinationLocation.getName());
                     bringBottomSheetDown();
                 }
             }

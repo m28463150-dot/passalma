@@ -35,12 +35,20 @@ public class AddressSearchActivity extends AppCompatActivity {
     private class AddressBridge {
         @JavascriptInterface
         public void selectAddress(String name, String latitude, String longitude) {
-            Intent result = new Intent();
-            result.putExtra(EXTRA_NAME, name);
-            result.putExtra(EXTRA_LATITUDE, Double.parseDouble(latitude));
-            result.putExtra(EXTRA_LONGITUDE, Double.parseDouble(longitude));
-            setResult(Activity.RESULT_OK, result);
-            finish();
+            try {
+                double parsedLatitude = Double.parseDouble(latitude);
+                double parsedLongitude = Double.parseDouble(longitude);
+                runOnUiThread(() -> {
+                    Intent result = new Intent();
+                    result.putExtra(EXTRA_NAME, name);
+                    result.putExtra(EXTRA_LATITUDE, parsedLatitude);
+                    result.putExtra(EXTRA_LONGITUDE, parsedLongitude);
+                    setResult(Activity.RESULT_OK, result);
+                    finish();
+                });
+            } catch (NumberFormatException exception) {
+                runOnUiThread(AddressSearchActivity.this::finish);
+            }
         }
     }
 }
