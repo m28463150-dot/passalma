@@ -7,17 +7,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.onesignal.OneSignal;
 import com.simcoder.uber.Customer.CustomerMapActivity;
 import com.simcoder.uber.Driver.DriverMapActivity;
 import com.simcoder.uber.R;
 import com.stripe.android.PaymentConfiguration;
 
-import org.jetbrains.annotations.NotNull;
 
 /**
  * First activity of the app.
@@ -27,8 +26,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class LauncherActivity extends AppCompatActivity {
 
-    int triedTypes = 0;
-
+    private boolean navigationStarted;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,60 +50,53 @@ public class LauncherActivity extends AppCompatActivity {
      * user to be able to pick one.
      */
     private void checkUserAccType() {
-        String userID;
+        String userID = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        DatabaseReference users = FirebaseDatabase.getInstance().getReference().child("Users");
+        Task<DataSnapshot> customerTask = users.child("Customers").child(userID).get();
+        Task<DataSnapshot> driverTask = users.child("Drivers").child(userID).get();
 
-        userID = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        DatabaseReference mCustomerDatabase = FirebaseDatabase.getInstance().getReference().child("Users").child("Customers").child(userID);
-        mCustomerDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists() && dataSnapshot.getChildrenCount() > 0) {
-                    startApis("Customers");
-                    Intent intent = new Intent(getApplication(), CustomerMapActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                    finish();
-                } else {
-                    checkNoType();
-                }
-            }
+        Tasks.whenAllSuccess(customerTask, driverTask).addOnSuccessListener(results -> {
+            DataSnapshot customer = (DataSnapshot) results.get(0);
+            DataSnapshot driver = (DataSnapshot) results.get(1);
 
-            @Override
-            public void onCancelled(@NotNull DatabaseError databaseError) {
+            if (hasAccountData(customer)) {
+                openAccount(CustomerMapActivity.class, "Customers");
+            } else if (hasAccountData(driver)) {
+                openAccount(DriverMapActivity.class, "Drivers");
+            } else {
+                openAccount(DetailsActivity.class, null);
             }
-        });
-        DatabaseReference mDriverDatabase = FirebaseDatabase.getInstance().getReference().child("Users").child("Drivers").child(userID);
-        mDriverDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists() && dataSnapshot.getChildrenCount() > 0) {
-                    startApis("Drivers");
-                    Intent intent = new Intent(getApplication(), DriverMapActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                    finish();
-                } else {
-                    checkNoType();
-                }
-            }
-
-            @Override
-            public void onCancelled(@NotNull DatabaseError databaseError) {
-            }
-        });
+        }).addOnFailureListener(error -> openAuthentication());
     }
 
-    /**
-     * checks if both types have not been fetched meaning the DetailsActivity must be called
-     */
-    void checkNoType() {
-        triedTypes++;
-        if (triedTypes == 2) {
-            Intent intent = new Intent(getApplication(), DetailsActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
-            finish();
+    private boolean hasAccountData(DataSnapshot snapshot) {
+        return snapshot.exists() && snapshot.getChildrenCount() > 0;
+    }
+
+    private void openAccount(Class<?> activityClass, String accountType) {
+        if (navigationStarted) {
+            return;
         }
+        navigationStarted = true;
+        if (accountType != null) {
+            startApis(accountType);
+        }
+        Intent intent = new Intent(this, activityClass);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void openAuthentication() {
+        if (navigationStarted) {
+            return;
+        }
+        navigationStarted = true;
+        FirebaseAuth.getInstance().signOut();
+        Intent intent = new Intent(this, AuthenticationActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     /**

@@ -29,6 +29,9 @@
     <string name="forgot_password">Forgot Password?</string>
     <string name="log_in">Login</string>
     <string name="register">Register</string>
+    <string name="welcome_title">Move freely, your way</string>
+    <string name="welcome_subtitle">Reliable rides, clear pricing, and a smoother journey.</string>
+    <string name="continue_with_google">Continue with Google</string>
     <string name="history">History</string>
     <string name="settings">Settings</string>
     <string name="logout">Logout</string>

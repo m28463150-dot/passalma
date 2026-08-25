@@ -1,0 +1,16 @@
+{
+  "name": "Passalma Android",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "codespace",
+  "runArgs": [
+    "--device=/dev/kvm"
+  ],
+  "containerEnv": {
+    "ANDROID_HOME": "/home/codespace/android-sdk",
+    "ANDROID_SDK_ROOT": "/home/codespace/android-sdk"
+  },
+  "postCreateCommand": "if [ -x \"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager\" ]; then yes | \"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager\" --licenses >/dev/null; fi"
+}

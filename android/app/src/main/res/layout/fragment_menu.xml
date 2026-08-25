@@ -1,52 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/white">
+    android:gravity="center_horizontal"
+    android:paddingStart="28dp"
+    android:paddingEnd="28dp"
+    android:paddingTop="40dp"
+    android:paddingBottom="24dp"
+    android:background="@color/surfaceMint">
     <ImageView
+        android:layout_width="104dp"
+        android:layout_height="104dp"
+        android:layout_marginTop="8dp"
+        android:contentDescription="@string/app_name"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher" />
+
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:layout_marginTop="28dp"
+        android:fontFamily="sans-serif-medium"
         android:gravity="center"
-        android:layout_margin="100sp"
-        android:src="@mipmap/ic_launcher">
-    </ImageView>
+        android:text="@string/welcome_title"
+        android:textColor="@color/ink"
+        android:textSize="30sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:lineSpacingExtra="3dp"
+        android:text="@string/welcome_subtitle"
+        android:textColor="@color/mutedInk"
+        android:textSize="16sp" />
 
 
     <com.google.android.gms.common.SignInButton
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="52dp"
         android:id="@+id/sign_in_button"
-        android:layout_marginLeft="20dp"
-        android:layout_marginRight="20dp"
-        android:layout_marginBottom="100dp"
-        android:layout_above="@+id/email_login"/>
+        android:layout_marginTop="32dp"
+        android:contentDescription="@string/continue_with_google" />
     <LinearLayout
         android:id="@+id/email_login"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_alignParentBottom="true">
+        android:layout_marginTop="16dp">
 
         <Button
-            android:padding="20sp"
+            android:padding="14dp"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:background="@color/colorPrimaryDark"
+            android:layout_height="56dp"
+            android:background="@drawable/bg_primary_button"
             android:text="@string/log_in"
             android:id="@+id/login"
             android:textColor="@android:color/white"
             tools:ignore="ButtonStyle" />
 
         <Button
-            android:padding="20sp"
+            android:padding="14dp"
             android:layout_width="0dp"
             android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:background="@color/colorAccent"
+            android:layout_height="56dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/bg_accent_button"
             android:text="@string/register"
             android:id="@+id/registration"
             android:textColor="@android:color/white"
@@ -54,4 +78,4 @@
 
     </LinearLayout>
 
-</RelativeLayout>
+</LinearLayout>
