@@ -5,7 +5,7 @@
     <string name="stripe_client_key" templateMergeStrategy="preserve" translatable="false">stripe_sk_key</string>
     <string name="firebase_hosting_url" templateMergeStrategy="preserve" translatable="false">https://firebase_hosting_url/</string>
 
-    <string name="app_name">Uber Clone</string>
+    <string name="app_name">Passalma</string>
     <string name="phone_driver">Phone</string>
     <string name="call_uber">Call Car</string>
     <string name="type_4">Bike</string>
@@ -32,6 +32,10 @@
     <string name="welcome_title">Move freely, your way</string>
     <string name="welcome_subtitle">Reliable rides, clear pricing, and a smoother journey.</string>
     <string name="continue_with_google">Continue with Google</string>
+    <string name="passalma_address_search_unavailable">Recherche indisponible. Verifiez votre connexion Internet.</string>
+    <string name="cancel">Annuler</string>
+    <string name="configuration_required_title">Configuration required</string>
+    <string name="configuration_required_message">Add the Firebase configuration file google-services.json to android/app, then rebuild the application.</string>
     <string name="history">History</string>
     <string name="settings">Settings</string>
     <string name="logout">Logout</string>

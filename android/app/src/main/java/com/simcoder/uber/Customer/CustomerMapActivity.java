@@ -66,7 +66,6 @@ import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQuery;
 import com.firebase.geofire.GeoQueryEventListener;
-import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -80,11 +79,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.libraries.places.api.Places;
-import com.google.android.libraries.places.api.model.Place;
-import com.google.android.libraries.places.widget.Autocomplete;
-import com.google.android.libraries.places.widget.AutocompleteActivity;
-import com.google.android.libraries.places.widget.model.AutocompleteActivityMode;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -112,7 +106,6 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -464,29 +457,24 @@ public class CustomerMapActivity extends AppCompatActivity
      * of destination and destinationLocation so that the user can call a driver
      */
     void initPlacesAutocomplete() {
-        if (!Places.isInitialized()) {
-            Places.initialize(getApplicationContext(), getResources().getString(R.string.google_maps_key));
-        }
-
         autocompleteFragmentTo.setOnClickListener(v -> {
             if (requestBol) {
                 return;
             }
-            Intent intent = new Autocomplete.IntentBuilder(
-                    AutocompleteActivityMode.OVERLAY, Arrays.asList(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG))
-                    .build(getApplicationContext());
-            startActivityForResult(intent, 1);
+            startActivityForResult(new Intent(this, AddressSearchActivity.class), 1);
         });
 
         autocompleteFragmentFrom.setOnClickListener(v -> {
             if (requestBol) {
                 return;
             }
-            Intent intent = new Autocomplete.IntentBuilder(
-                    AutocompleteActivityMode.OVERLAY, Arrays.asList(Place.Field.ID, Place.Field.NAME, Place.Field.LAT_LNG))
-                    .build(getApplicationContext());
-            startActivityForResult(intent, 2);
+            startActivityForResult(new Intent(this, AddressSearchActivity.class), 2);
         });
+    }
+
+    private void showAddressSearchError() {
+        Snackbar.make(findViewById(R.id.drawer_layout),
+            R.string.passalma_address_search_unavailable, Snackbar.LENGTH_LONG).show();
     }
 
 
@@ -1278,7 +1266,9 @@ public class CustomerMapActivity extends AppCompatActivity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
+        if (resultCode == RESULT_OK && data != null
+            && data.hasExtra(AddressSearchActivity.EXTRA_LATITUDE)
+            && data.hasExtra(AddressSearchActivity.EXTRA_LONGITUDE)) {
 
             LocationObject mLocation;
 
@@ -1286,9 +1276,15 @@ public class CustomerMapActivity extends AppCompatActivity
                 Snackbar.make(findViewById(R.id.drawer_layout), "First Activate GPS", Snackbar.LENGTH_LONG).show();
                 return;
             }
-            Place place = Autocomplete.getPlaceFromIntent(data);
+            String name = data.getStringExtra(AddressSearchActivity.EXTRA_NAME);
+            double latitude = data.getDoubleExtra(AddressSearchActivity.EXTRA_LATITUDE, Double.NaN);
+            double longitude = data.getDoubleExtra(AddressSearchActivity.EXTRA_LONGITUDE, Double.NaN);
+            if (name == null || Double.isNaN(latitude) || Double.isNaN(longitude)) {
+                showAddressSearchError();
+                return;
+            }
 
-            mLocation = new LocationObject(place.getLatLng(), place.getName());
+            mLocation = new LocationObject(new LatLng(latitude, longitude), name);
 
 
             currentLocation = new LocationObject(new LatLng(currentLocation.getCoordinates().latitude, currentLocation.getCoordinates().longitude), "");
@@ -1323,16 +1319,9 @@ public class CustomerMapActivity extends AppCompatActivity
             mRequest.setText(getString(R.string.call_uber));
 
 
-        } else if (resultCode == AutocompleteActivity.RESULT_ERROR) {
-            // TODO: Handle the error.
-            Status status = Autocomplete.getStatusFromIntent(data);
-            assert status.getStatusMessage() != null;
-            Log.i("PLACE_AUTOCOMPLETE", status.getStatusMessage());
         } else if (resultCode == RESULT_CANCELED) {
-            initPlacesAutocomplete();
+            return;
         }
-        initPlacesAutocomplete();
-
 
     }
 

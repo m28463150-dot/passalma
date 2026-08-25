@@ -45,6 +45,7 @@
         <activity android:name="com.simcoder.uber.Payment.PayoutActivity" />
         <activity android:name="com.simcoder.uber.Payment.AddPaymentActivity" />
         <activity android:name="com.simcoder.uber.Login.DetailsActivity" />
+        <activity android:name="com.simcoder.uber.Customer.AddressSearchActivity" />
 
         <uses-library
             android:name="org.apache.http.legacy"

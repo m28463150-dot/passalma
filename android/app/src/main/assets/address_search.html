@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Recherche d'adresse</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    * { box-sizing: border-box; }
+    html, body, #map { height: 100%; margin: 0; }
+    #map { background: #eaf5f1; }
+    .search { position: fixed; z-index: 1000; top: 16px; left: 16px; right: 16px; }
+    input { width: 100%; padding: 16px; border: 0; border-radius: 12px; box-shadow: 0 3px 16px #17302f33; font-size: 16px; outline: 0; }
+    #suggestions { margin-top: 8px; overflow: hidden; border-radius: 12px; background: white; box-shadow: 0 3px 16px #17302f33; }
+    button { display: block; width: 100%; padding: 14px 16px; border: 0; border-bottom: 1px solid #eaf5f1; background: white; color: #17302f; text-align: left; font-size: 14px; }
+    button:last-child { border-bottom: 0; }
+    .attribution { position: fixed; z-index: 1000; right: 4px; bottom: 4px; padding: 2px 4px; background: #ffffffcc; font: 11px sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="search">
+    <input id="query" type="search" placeholder="Rechercher une adresse" autocomplete="off">
+    <div id="suggestions"></div>
+  </div>
+  <div class="attribution">© OpenStreetMap contributors</div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([48.8566, 2.3522], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    let marker;
+    let timer;
+    const input = document.getElementById('query');
+    const suggestions = document.getElementById('suggestions');
+
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const query = input.value.trim();
+      if (query.length < 3) { suggestions.innerHTML = ''; return; }
+      timer = setTimeout(() => search(query), 350);
+    });
+
+    async function search(query) {
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=fr&q=' + encodeURIComponent(query);
+        const response = await fetch(url);
+        const places = await response.json();
+        suggestions.innerHTML = places.map(place =>
+          '<button type="button" data-lat="' + place.lat + '" data-lon="' + place.lon + '" data-name="' + escapeHtml(place.display_name) + '">' + escapeHtml(place.display_name) + '</button>'
+        ).join('');
+      } catch (error) {
+        suggestions.innerHTML = '<button type="button">Recherche indisponible</button>';
+      }
+    }
+
+    suggestions.addEventListener('click', event => {
+      const button = event.target.closest('button[data-lat]');
+      if (!button) return;
+      const lat = Number(button.dataset.lat);
+      const lon = Number(button.dataset.lon);
+      const name = button.dataset.name;
+      if (marker) marker.remove();
+      marker = L.marker([lat, lon]).addTo(map);
+      map.setView([lat, lon], 16);
+      input.value = name;
+      suggestions.innerHTML = '';
+      Android.selectAddress(name, String(lat), String(lon));
+    });
+
+    function escapeHtml(value) {
+      return value.replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
+    }
+  </script>
+</body>
+</html>

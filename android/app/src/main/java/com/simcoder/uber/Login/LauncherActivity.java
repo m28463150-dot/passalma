@@ -5,6 +5,7 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
@@ -16,6 +17,8 @@ import com.simcoder.uber.Customer.CustomerMapActivity;
 import com.simcoder.uber.Driver.DriverMapActivity;
 import com.simcoder.uber.R;
 import com.stripe.android.PaymentConfiguration;
+
+import android.app.AlertDialog;
 
 
 /**
@@ -32,6 +35,11 @@ public class LauncherActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        if (FirebaseApp.initializeApp(this) == null) {
+            showFirebaseConfigurationError();
+            return;
+        }
+
         FirebaseAuth mAuth = FirebaseAuth.getInstance();
         if (mAuth.getCurrentUser() != null) {
             checkUserAccType();
@@ -41,6 +49,15 @@ public class LauncherActivity extends AppCompatActivity {
             startActivity(intent);
             finish();
         }
+    }
+
+    private void showFirebaseConfigurationError() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.configuration_required_title)
+                .setMessage(R.string.configuration_required_message)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> finish())
+                .setOnCancelListener(dialog -> finish())
+                .show();
     }
 
 

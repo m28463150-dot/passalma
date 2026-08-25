@@ -1,112 +1,129 @@
-![Version](https://img.shields.io/badge/version-1.0-blue.svg?cacheSeconds=2592000)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![image](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/simcoder_here)
-[![image](https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/simcoder_here/)
-[![image](https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/channel/UCQ5xY26cw5Noh6poIE-VBog)
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/simcoder)
+# Passalma
 
-<!-- PROJECT LOGO -->
-<br />
-<p align="center">
-  <a href="https://github.com/SimCoderYoutube/UberClone">
-    <img src="images/simcoder.png" alt="Logo" width="120" height="120">
-  </a>
+Passalma est une application Android de réservation de trajets, avec deux parcours :
 
-  <h3 align="center">Uber Clone</h3>
+- client : recherche d'un chauffeur, réservation et suivi du trajet ;
+- chauffeur : réception des demandes, gestion de course et historique.
 
-  <p align="center">
-    A Uber clone app made with android native (java) and firebase
-    <br />
-    <a href="https://github.com/SimCoderYoutube/UberClone/wiki"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/SimCoderYoutube/UberClone/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/SimCoderYoutube/UberClone/issues">Request Feature</a>
-  </p>
-</p>
+L'application utilise Android natif en Java, Firebase, Google Maps et Stripe.
 
-<!-- TABLE OF CONTENTS -->
-<details open="open">
-  <summary><h2 style="display: inline-block">Table of Contents</h2></summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#built-with">Built With</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#support">Support</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-  </ol>
-</details>
+## État du projet
 
-<!-- ABOUT THE PROJECT -->
+Le projet compile en version debug et produit un APK Android. Les services externes doivent toutefois être configurés avant une utilisation réelle : Firebase, Google Maps, Stripe et OneSignal.
 
-## ℹ️ About The Project
+Le nom de package Android historique est encore `com.simcoder.uber`.
 
-![alt text](images/mockup.png "Title")
+## Technologies
 
-This repo contains the project made in my youtube chanel called simcoder. This project is a clone of the Uber android app.
+- Java 8 et Android Gradle Plugin 4.2.1
+- Gradle 6.7.1
+- Android SDK 30, Android minimum 5.0 (API 21)
+- Firebase Authentication, Realtime Database et Storage
+- Google Maps, Places et GeoFire
+- Stripe pour les paiements
+- OneSignal pour les notifications
 
-It is made using android native with java and some firebase services (authentication, real time database and storage).
+## Structure
 
-In the [master](https://github.com/SimCoderYoutube/UberClone/tree/master) branch you have the redesign project which I was previously selling in my website, however you still have access to the youtube series repo in the [youtube_series](https://github.com/SimCoderYoutube/UberClone/tree/youtube_series)
+```text
+android/                 Application Android
+Firebase_Functions/      Fonctions Firebase et intégration Stripe
+realtime_database_rules.json
+images/                  Images de présentation
+.devcontainer/           Configuration Codespaces avec Android et KVM
+```
 
-You can follow the youtube series in the following [link](https://www.youtube.com/watch?v=7HbQx0lwRww&list=PLxabZQCAe5fgXx8cn2iKOtt0VFJrf5bOd&ab_channel=SimCoder)
+## Prérequis
 
-## 🆕 Getting Started
+- Android Studio ou VS Code avec Dev Containers ;
+- JDK 11 ;
+- Android SDK avec les composants suivants :
+  - Android SDK Platform 30 ;
+  - Android SDK Build-Tools 30.0.3 ;
+  - Android Emulator ;
+  - une image système Android 30 ;
+- un projet Firebase ;
+- Node.js et Firebase CLI pour les fonctions backend.
 
-- ### **Prerequisites**
+## Configuration Firebase
 
-  - [Android Studio](https://developer.android.com/)
-  - [Firebase](https://firebase.google.com/)
+1. Créer une application Android dans Firebase avec le package `com.simcoder.uber`.
+2. Télécharger `google-services.json`.
+3. Placer le fichier dans `android/app/google-services.json`.
+4. Activer Authentication, Realtime Database et Storage.
+5. Importer [realtime_database_rules.json](realtime_database_rules.json) dans les règles Realtime Database.
 
-<!-- GETTING STARTED -->
+Ne jamais publier de clé secrète ou de fichier contenant des identifiants privés dans GitHub.
 
-- ### **Installation**
+## Configuration des clés
 
-  In order to deploy the project you'll need to follow the [wiki page](https://github.com/SimCoderYoutube/UberClone/wiki/Setup-your-project) dedicated to this effect.
+Remplacer les valeurs de démonstration dans [strings.xml](android/app/src/main/res/values/strings.xml) :
 
-## 🚧 Roadmap
+- clé publique Google Maps ;
+- URL des Firebase Functions ;
+- clé publique Stripe ;
+- URL Firebase Hosting.
 
-See the [open issues](https://github.com/SimCoderYoutube/UberClone/issues) for a list of proposed features (and known issues).
+La clé secrète Stripe doit rester dans la configuration Firebase Functions. Elle ne doit pas être placée dans l'application Android.
 
-<!-- CONTRIBUTING -->
+## Compiler l'application
 
-## ➕ Contributing
+Depuis la racine du dépôt :
 
-Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated**. Please check the [Wiki](https://github.com/SimCoderYoutube/UberClone/wiki/How-to-Contribute)
+```bash
+cd android
+bash ./gradlew --no-daemon --max-workers=1 \
+  -Dorg.gradle.jvmargs=-Xmx768m \
+  :app:assembleDebug
+```
 
-## 🌟 Show your support
+L'APK est généré ici :
 
-Give a ⭐️ if this project helped you!
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
 
-And don't forget to subscribe to the [youtube chanel](https://www.youtube.com/c/SimpleCoder?sub_confirmation=1)
+## Émulateur Codespaces
 
-## 📝 License
+La configuration [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json) expose `/dev/kvm` et le [Dockerfile](.devcontainer/Dockerfile) installe les bibliothèques X11 nécessaires.
 
-Copyright © 2021 [SimCoder](https://github.com/simcoderYoutube).
+Après **Dev Containers: Rebuild Container**, créer ou utiliser l'AVD `passalma_api30`, puis lancer :
 
-This project is [MIT](https://github.com/SimCoderYoutube/UberClone/blob/master/LICENSE) licensed. Some of the dependencies are licensed differently.
+```bash
+emulator -avd passalma_api30 \
+  -no-window -no-audio -no-boot-anim -gpu off
+```
 
-<!-- CONTACT -->
+Vérifier la connexion :
 
-## 👤 Contact
+```bash
+adb devices
+```
 
-**SimCoder**
+Installer l'APK :
 
-- Website: www.simcoder.com
-- Twitter: [@simcoder_here](https://twitter.com/simcoder_here)
-- Github: [@simcoderYoutube](https://github.com/simcoderYoutube)
-- Youtube: [SimCoder](https://www.youtube.com/channel/UCQ5xY26cw5Noh6poIE-VBog)
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Firebase Functions
+
+Configurer les secrets Stripe dans le projet Firebase, depuis `Firebase_Functions/`, puis déployer les fonctions :
+
+```bash
+firebase functions:config:set stripe.sk="CLE_SECRETE" stripe.pk="CLE_PUBLIQUE" stripe.currency="EUR"
+firebase deploy --only functions
+```
+
+Les valeurs sensibles doivent être saisies localement et ne doivent pas être ajoutées aux fichiers suivis par Git.
+
+## Limites connues
+
+- Les services Firebase et les clés API ne sont pas fournis dans le dépôt.
+- Le SDK PayPal utilisé est ancien et devra être migré avant une mise en production.
+- Les fonctions backend nécessitent une configuration Stripe valide.
+- L'émulateur headless peut être limité par la mémoire disponible dans Codespaces.
+
+## Licence
+
+Ce projet est distribué sous licence MIT. Voir [LICENSE](LICENSE).
