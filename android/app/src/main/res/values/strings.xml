@@ -4,6 +4,9 @@
     <string name="publishablekey" templateMergeStrategy="preserve" translatable="false">stripe_pk_key</string>
     <string name="stripe_client_key" templateMergeStrategy="preserve" translatable="false">stripe_sk_key</string>
     <string name="firebase_hosting_url" templateMergeStrategy="preserve" translatable="false">https://firebase_hosting_url/</string>
+    <string name="supabase_url" translatable="false">https://yoltbollohxmtmryzcee.supabase.co</string>
+    <string name="supabase_publishable_key" translatable="false">sb_publishable_nUJ96BMCjLMZDRCvn9ZLPQ_fzQRNu3N</string>
+    <string name="supabase_stripe_function_url" translatable="false">https://yoltbollohxmtmryzcee.supabase.co/functions/v1/stripe</string>
 
     <string name="app_name">Passalma</string>
     <string name="phone_driver">Phone</string>
@@ -35,7 +38,7 @@
     <string name="passalma_address_search_unavailable">Recherche indisponible. Verifiez votre connexion Internet.</string>
     <string name="cancel">Annuler</string>
     <string name="configuration_required_title">Configuration required</string>
-    <string name="configuration_required_message">Add the Firebase configuration file google-services.json to android/app, then rebuild the application.</string>
+    <string name="configuration_required_message">Configure the Supabase URL and publishable key, then rebuild the application.</string>
     <string name="history">History</string>
     <string name="settings">Settings</string>
     <string name="logout">Logout</string>

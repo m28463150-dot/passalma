@@ -10,6 +10,7 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 
 import androidx.annotation.NonNull;
@@ -85,6 +86,9 @@ import com.simcoder.uber.History.HistoryActivity;
 import com.simcoder.uber.Login.LauncherActivity;
 import com.simcoder.uber.Payment.PayoutActivity;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseRides;
+import com.simcoder.uber.SupabaseAuth;
+import com.simcoder.uber.SupabaseProfiles;
 import com.simcoder.uber.Objects.RideObject;
 
 import org.jetbrains.annotations.NotNull;
@@ -365,8 +369,23 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
                     } catch (CloneNotSupportedException e) {
                         e.printStackTrace();
                     }
-                    mCurrentRide.confirmDriver();
-                    requestListener();
+                    SupabaseRides.acceptRide(DriverMapActivity.this, mCurrentRide.getId(), new SupabaseRides.Result() {
+                        @Override public void onSuccess(String payload) {
+                            runOnUiThread(() -> {
+                                requestList.remove(mRide);
+                                cardRequestAdapter.notifyDataSetChanged();
+                                checkRequestState();
+                            });
+                        }
+
+                        @Override public void onError(String message) {
+                            runOnUiThread(() -> {
+                                mCurrentRide = null;
+                                requestList.remove(mRide);
+                                cardRequestAdapter.notifyDataSetChanged();
+                            });
+                        }
+                    });
                 }
 
             }
@@ -417,39 +436,27 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
      * connect the driver and set the radio button to "working"
      */
     private void getUserData() {
-        String driverId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        DatabaseReference assignedCustomerRef = FirebaseDatabase.getInstance().getReference().child("Users").child("Drivers").child(driverId);
-        assignedCustomerRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    mDriver.parseData(dataSnapshot);
-
-                    mUsername.setText(mDriver.getName());
-                }
+        SupabaseProfiles.get(this, new SupabaseProfiles.Result() {
+            @Override public void onSuccess(com.google.gson.JsonObject profile) {
+                runOnUiThread(() -> mUsername.setText(profile.get("name").getAsString()));
             }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
+            @Override public void onError(String message) { }
         });
 
-        FirebaseDatabase.getInstance().getReference("driversWorking").child(driverId).addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists()) {
+        SupabaseRides.fetchDriverLocation(this, SupabaseAuth.getUserId(this), new SupabaseRides.Result() {
+            @Override public void onSuccess(String payload) {
+                runOnUiThread(() -> {
+                    if (!payload.equals("[]")) {
                     mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                     connectDriver();
-                } else {
+                    } else {
                     mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
                     disconnectDriver();
-                }
+                    }
+                });
             }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
+            @Override public void onError(String message) {
+                runOnUiThread(() -> disconnectDriver());
             }
         });
     }
@@ -460,16 +467,17 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
      * start all of the relevant variables up, with that ride info.
      */
     private void isRequestInProgress() {
-        FirebaseDatabase.getInstance().getReference().child("ride_info").orderByChild("driverId").equalTo(FirebaseAuth.getInstance().getCurrentUser().getUid()).limitToLast(1).addListenerForSingleValueEvent(new ValueEventListener() {
+        SupabaseRides.fetchLatestDriverRide(this, new SupabaseRides.Result() {
             @Override
-            public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
-                if (!dataSnapshot.exists()) {
+            public void onSuccess(String payload) {
+                runOnUiThread(() -> {
+                if (payload.equals("[]")) {
                     mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                    return;
                 }
-
-                for(DataSnapshot mData : dataSnapshot.getChildren()){
+                for(com.google.gson.JsonElement mData : com.google.gson.JsonParser.parseString(payload).getAsJsonArray()){
                     mCurrentRide = new RideObject();
-                    mCurrentRide.parseData(mData);
+                    mCurrentRide.parseSupabase(mData.getAsJsonObject());
 
                     if (mCurrentRide.getCancelled() || mCurrentRide.getEnded()) {
                         endRide();
@@ -480,10 +488,12 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
                     requestListener();
                 }
 
+                });
             }
 
             @Override
-            public void onCancelled(@NotNull DatabaseError databaseError) {
+            public void onError(String message) {
+                runOnUiThread(() -> mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN));
             }
         });
     }
@@ -537,6 +547,17 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
             return;
         }
 
+        if (mWorkingSwitch.isChecked() && mCurrentRide == null) {
+            SupabaseRides.fetchRequestedRides(this, new SupabaseRides.Result() {
+                @Override public void onSuccess(String payload) {
+                    runOnUiThread(() -> addSupabaseRequests(payload));
+                }
+                @Override public void onError(String message) {
+                }
+            });
+            return;
+        }
+
         DatabaseReference requestLocation = FirebaseDatabase.getInstance().getReference().child("customer_requests");
 
         GeoFire geoFire = new GeoFire(requestLocation);
@@ -580,6 +601,17 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
             public void onGeoQueryError(DatabaseError error) {
             }
         });
+    }
+
+    private void addSupabaseRequests(String payload) {
+        com.google.gson.JsonArray rides = com.google.gson.JsonParser.parseString(payload).getAsJsonArray();
+        requestList.clear();
+        for (com.google.gson.JsonElement element : rides) {
+            RideObject ride = new RideObject();
+            ride.parseSupabase(element.getAsJsonObject());
+            requestList.add(ride);
+        }
+        if (cardRequestAdapter != null) cardRequestAdapter.notifyDataSetChanged();
     }
 
     /**
@@ -654,6 +686,11 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
             return;
         }
 
+        supabaseRideHandler.removeCallbacks(supabaseRidePoll);
+        supabaseRideHandler.post(supabaseRidePoll);
+        return;
+
+        /*
         driveHasEndedRefListener = mCurrentRide.getRideRef().addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
@@ -674,8 +711,27 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
             @Override
             public void onCancelled(@NotNull DatabaseError databaseError) {
             }
-        });
+        });*/
     }
+
+    private final Handler supabaseRideHandler = new Handler();
+    private final Runnable supabaseRidePoll = new Runnable() {
+        @Override public void run() {
+            if (mCurrentRide == null) return;
+            SupabaseRides.fetchRide(DriverMapActivity.this, mCurrentRide.getId(), new SupabaseRides.Result() {
+                @Override public void onSuccess(String payload) {
+                    runOnUiThread(() -> {
+                        if (payload.equals("[]")) return;
+                        mCurrentRide.parseSupabase(com.google.gson.JsonParser.parseString(payload).getAsJsonArray().get(0).getAsJsonObject());
+                        if (mCurrentRide.getCancelled() || mCurrentRide.getEnded()) endRide();
+                        else checkRequestState();
+                    });
+                }
+                @Override public void onError(String message) { }
+            });
+            supabaseRideHandler.postDelayed(this, 2000);
+        }
+    };
 
 
     /**
@@ -809,18 +865,17 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
             for (Location location : locationResult.getLocations()) {
                 if (getApplicationContext() != null) {
 
-                    String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-                    DatabaseReference refWorking = FirebaseDatabase.getInstance().getReference("driversWorking");
-                    GeoFire geoFireWorking = new GeoFire(refWorking);
-
                     if (!mWorkingSwitch.isChecked()) {
-                        geoFireWorking.removeLocation(userId, (key, error) -> {
+                        SupabaseRides.updateDriverLocation(DriverMapActivity.this, location.getLatitude(), location.getLongitude(), false, new SupabaseRides.Result() {
+                            @Override public void onSuccess(String payload) { }
+                            @Override public void onError(String message) { }
                         });
                         return;
                     }
 
-
-                    geoFireWorking.setLocation(userId, new GeoLocation(location.getLatitude(), location.getLongitude()), (key, error) -> {
+                    SupabaseRides.updateDriverLocation(DriverMapActivity.this, location.getLatitude(), location.getLongitude(), true, new SupabaseRides.Result() {
+                        @Override public void onSuccess(String payload) { }
+                        @Override public void onError(String message) { }
                     });
 
                     if (mCurrentRide != null && mLastLocation != null) {
@@ -833,10 +888,6 @@ public class DriverMapActivity extends AppCompatActivity implements NavigationVi
                         getRequestsAround();
                         started = true;
                     }
-
-                    Map<String, Object> newUserMap = new HashMap<>();
-                    newUserMap.put("last_updated", ServerValue.TIMESTAMP);
-                    mUser.updateChildren(newUserMap);
 
                     if (!zoomUpdated) {
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));

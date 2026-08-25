@@ -2,8 +2,6 @@ package com.simcoder.uber.History;
 
 import android.annotation.SuppressLint;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
@@ -15,17 +13,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.view.View;
 import android.widget.LinearLayout;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.ChildEventListener;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
 import com.simcoder.uber.Objects.RideObject;
 import com.simcoder.uber.Adapters.HistoryAdapter;
 import com.simcoder.uber.R;
-
-import org.jetbrains.annotations.NotNull;
+import com.simcoder.uber.SupabaseAuth;
+import com.simcoder.uber.SupabaseRides;
 
 import java.util.ArrayList;
 
@@ -61,8 +53,6 @@ public class HistoryActivity extends AppCompatActivity {
         mEmpty = findViewById(R.id.empty_layout);
 
         String customerOrDriver = getIntent().getExtras().getString("customerOrDriver");
-        String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-
         if(customerOrDriver.equals("Drivers")){
             idRef = "driverId";
         }else{
@@ -96,44 +86,20 @@ public class HistoryActivity extends AppCompatActivity {
      */
     private void getUserHistoryIds() {
 
-        String driverId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        Query query = FirebaseDatabase.getInstance().getReference().child("ride_info").orderByChild(idRef).equalTo(driverId);
-
-        query.addChildEventListener(new ChildEventListener() {
-
-            @SuppressLint("SetTextI18n")
-            @Override
-            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-                if(!dataSnapshot.exists()){return;}
-
-                RideObject mRide = new RideObject();
-                mRide.parseData(dataSnapshot);
-
-                if(mRide.getCancelled()){
-                    return;
-                }
-                mEmpty.setVisibility(View.GONE);
-                resultsHistory.add(0,  mRide);
-                mHistoryAdapter.notifyDataSetChanged();
+        SupabaseRides.fetchHistory(this, idRef, new SupabaseRides.Result() {
+            @Override public void onSuccess(String payload) {
+                runOnUiThread(() -> {
+                    for (com.google.gson.JsonElement element : com.google.gson.JsonParser.parseString(payload).getAsJsonArray()) {
+                        RideObject ride = new RideObject();
+                        ride.parseSupabase(element.getAsJsonObject());
+                        resultsHistory.add(ride);
+                    }
+                    mEmpty.setVisibility(resultsHistory.isEmpty() ? View.VISIBLE : View.GONE);
+                    mHistoryAdapter.notifyDataSetChanged();
+                });
             }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
-            }
-
-            @Override
-            public void onCancelled(@NotNull DatabaseError databaseError) {
+            @Override public void onError(String message) {
+                runOnUiThread(() -> mEmpty.setVisibility(View.VISIBLE));
             }
         });
 

@@ -22,10 +22,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.GoogleAuthProvider;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -40,7 +38,6 @@ public class MenuFragment extends Fragment implements View.OnClickListener, Goog
     private static final int RC_SIGN_IN = 1;
     String name, email;
     String idToken;
-    private FirebaseAuth firebaseAuth;
     private View view;
 
     private boolean started = false;
@@ -59,8 +56,6 @@ public class MenuFragment extends Fragment implements View.OnClickListener, Goog
         else
             container.removeView(view);
 
-
-        firebaseAuth = FirebaseAuth.getInstance();
 
         if (!started) {
 
@@ -114,8 +109,14 @@ public class MenuFragment extends Fragment implements View.OnClickListener, Goog
             name = account.getDisplayName();
             email = account.getEmail();
             // you can store user data to SharedPreference
-            AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
-            firebaseAuthWithGoogle(credential);
+            SupabaseAuth.signInWithGoogle(requireContext(), idToken, new SupabaseAuth.CallbackResult() {
+                @Override public void onSuccess(String userId, String email) {
+                    requireActivity().runOnUiThread(() -> Toast.makeText(getActivity(), "Login successful", Toast.LENGTH_SHORT).show());
+                }
+                @Override public void onError(String message) {
+                    requireActivity().runOnUiThread(() -> Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show());
+                }
+            });
         } else {
             // Google Sign In failed, update UI appropriately
             Toast.makeText(getActivity(), "Login Unsuccessful", Toast.LENGTH_SHORT).show();
@@ -126,20 +127,6 @@ public class MenuFragment extends Fragment implements View.OnClickListener, Goog
      * login with the google credential if the account does not exist it will be automatically created
      * @param credential - google auth credential
      */
-    private void firebaseAuthWithGoogle(AuthCredential credential) {
-        firebaseAuth.signInWithCredential(credential)
-                .addOnCompleteListener(getActivity(), task -> {
-                    if (task.isSuccessful()) {
-                        Toast.makeText(getActivity(), "Login successful", Toast.LENGTH_SHORT).show();
-                    } else {
-                        task.getException().printStackTrace();
-                        Toast.makeText(getActivity(), "Authentication failed.",
-                                Toast.LENGTH_SHORT).show();
-                    }
-
-                });
-    }
-
     @Override
     public void onClick(View view) {
         switch (view.getId()) {

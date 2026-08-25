@@ -5,17 +5,11 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
 import com.onesignal.OneSignal;
 import com.simcoder.uber.Customer.CustomerMapActivity;
 import com.simcoder.uber.Driver.DriverMapActivity;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
 import com.stripe.android.PaymentConfiguration;
 
 import android.app.AlertDialog;
@@ -35,13 +29,7 @@ public class LauncherActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (FirebaseApp.initializeApp(this) == null) {
-            showFirebaseConfigurationError();
-            return;
-        }
-
-        FirebaseAuth mAuth = FirebaseAuth.getInstance();
-        if (mAuth.getCurrentUser() != null) {
+        if (SupabaseAuth.isSignedIn(this)) {
             checkUserAccType();
         } else {
             Intent intent = new Intent(LauncherActivity.this, AuthenticationActivity.class);
@@ -51,43 +39,23 @@ public class LauncherActivity extends AppCompatActivity {
         }
     }
 
-    private void showFirebaseConfigurationError() {
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.configuration_required_title)
-                .setMessage(R.string.configuration_required_message)
-                .setPositiveButton(android.R.string.ok, (dialog, which) -> finish())
-                .setOnCancelListener(dialog -> finish())
-                .show();
-    }
-
-
     /**
      * Check user account type, either customer or driver.
      * If it doesn't have a type then start the DetailsActivity for the
      * user to be able to pick one.
      */
     private void checkUserAccType() {
-        String userID = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        DatabaseReference users = FirebaseDatabase.getInstance().getReference().child("Users");
-        Task<DataSnapshot> customerTask = users.child("Customers").child(userID).get();
-        Task<DataSnapshot> driverTask = users.child("Drivers").child(userID).get();
-
-        Tasks.whenAllSuccess(customerTask, driverTask).addOnSuccessListener(results -> {
-            DataSnapshot customer = (DataSnapshot) results.get(0);
-            DataSnapshot driver = (DataSnapshot) results.get(1);
-
-            if (hasAccountData(customer)) {
-                openAccount(CustomerMapActivity.class, "Customers");
-            } else if (hasAccountData(driver)) {
-                openAccount(DriverMapActivity.class, "Drivers");
-            } else {
-                openAccount(DetailsActivity.class, null);
+        SupabaseAuth.getProfile(this, new SupabaseAuth.ProfileResult() {
+            @Override public void onSuccess(String role) {
+                runOnUiThread(() -> openAccount(role.equals("driver") ? DriverMapActivity.class : CustomerMapActivity.class, role));
             }
-        }).addOnFailureListener(error -> openAuthentication());
-    }
-
-    private boolean hasAccountData(DataSnapshot snapshot) {
-        return snapshot.exists() && snapshot.getChildrenCount() > 0;
+            @Override public void onMissing() {
+                runOnUiThread(() -> openAccount(DetailsActivity.class, null));
+            }
+            @Override public void onError(String message) {
+                runOnUiThread(() -> openAuthentication());
+            }
+        });
     }
 
     private void openAccount(Class<?> activityClass, String accountType) {
@@ -109,7 +77,7 @@ public class LauncherActivity extends AppCompatActivity {
             return;
         }
         navigationStarted = true;
-        FirebaseAuth.getInstance().signOut();
+        SupabaseAuth.signOut(this);
         Intent intent = new Intent(this, AuthenticationActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
@@ -122,10 +90,7 @@ public class LauncherActivity extends AppCompatActivity {
      */
     void startApis(String type) {
         OneSignal.startInit(this).init();
-        OneSignal.sendTag("User_ID", FirebaseAuth.getInstance().getCurrentUser().getUid());
-        OneSignal.setEmail(FirebaseAuth.getInstance().getCurrentUser().getEmail());
-        //OneSignal.setInFocusDisplaying(OneSignal.OSInFocusDisplayOption.Notification);
-        OneSignal.idsAvailable((userId, registrationId) -> FirebaseDatabase.getInstance().getReference().child("Users").child(type).child(FirebaseAuth.getInstance().getCurrentUser().getUid()).child("notificationKey").setValue(userId));
+        OneSignal.sendTag("User_ID", SupabaseAuth.getUserId(this));
         PaymentConfiguration.init(
                 getApplicationContext(),
                 getResources().getString(R.string.publishablekey)

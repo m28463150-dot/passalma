@@ -7,10 +7,9 @@ import android.net.Uri;
 
 import androidx.appcompat.app.AlertDialog;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.FirebaseDatabase;
 import com.simcoder.uber.Objects.CardObject;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
 
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
@@ -46,8 +45,7 @@ public class PaymentUtils {
      * @param context - context of the activity that calls the function
      */
     void startStripeConnect(Activity activity, Context context) {
-        String hash = FirebaseDatabase.getInstance().getReference().child("Users").child("Drivers").child(FirebaseAuth.getInstance().getCurrentUser().getUid()).push().getKey();
-        FirebaseDatabase.getInstance().getReference().child("Users").child("Drivers").child(FirebaseAuth.getInstance().getCurrentUser().getUid()).child("connect_code").setValue(hash);
+        String hash = java.util.UUID.randomUUID().toString();
 
         Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://connect.stripe.com/express/oauth/authorize?redirect_uri=" + context.getResources().getString(R.string.firebase_hosting_url) + "&client_id=" + context.getResources().getString(R.string.stripe_client_key) + "&state=" + hash));
         activity.startActivity(browserIntent);
@@ -61,7 +59,9 @@ public class PaymentUtils {
         final OkHttpClient client = new OkHttpClient();
 
         final Request request = new Request.Builder()
-                .url(context.getResources().getString(R.string.firebase_functions_base_url) + "/listCustomerCards?uid=" + FirebaseAuth.getInstance().getCurrentUser().getUid())
+                .url(context.getResources().getString(R.string.supabase_stripe_function_url) + "?action=list")
+                .addHeader("apikey", context.getResources().getString(R.string.supabase_publishable_key))
+                .addHeader("Authorization", "Bearer " + SupabaseAuth.getAccessToken(context))
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -136,7 +136,7 @@ public class PaymentUtils {
         final OkHttpClient client = new OkHttpClient();
         JSONObject postData = new JSONObject();
         try {
-            postData.put("uid", FirebaseAuth.getInstance().getUid());
+            postData.put("uid", SupabaseAuth.getUserId(context));
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -144,11 +144,12 @@ public class PaymentUtils {
         RequestBody body = RequestBody.create(MEDIA_TYPE, postData.toString());
 
         final Request request = new Request.Builder()
-                .url(context.getResources().getString(R.string.firebase_functions_base_url) + "payout")
+                .url(context.getResources().getString(R.string.supabase_stripe_function_url) + "?action=payout")
                 .post(body)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("cache-control", "no-cache")
-                .addHeader("Authorization", "Your Token")
+                .addHeader("Authorization", "Bearer " + SupabaseAuth.getAccessToken(context))
+                .addHeader("apikey", context.getResources().getString(R.string.supabase_publishable_key))
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -183,7 +184,7 @@ public class PaymentUtils {
         final OkHttpClient client = new OkHttpClient();
         JSONObject postData = new JSONObject();
         try {
-            postData.put("uid", FirebaseAuth.getInstance().getUid());
+            postData.put("uid", SupabaseAuth.getUserId(context));
             postData.put("payment_id", paymentId);
         } catch (JSONException e) {
             e.printStackTrace();
@@ -193,11 +194,12 @@ public class PaymentUtils {
 
 
         final Request request = new Request.Builder()
-                .url(context.getResources().getString(R.string.firebase_functions_base_url) + "setDefaultCard")
+                .url(context.getResources().getString(R.string.supabase_stripe_function_url) + "?action=default")
                 .post(body)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("cache-control", "no-cache")
-                .addHeader("Authorization", "Your Token")
+                .addHeader("Authorization", "Bearer " + SupabaseAuth.getAccessToken(context))
+                .addHeader("apikey", context.getResources().getString(R.string.supabase_publishable_key))
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -225,7 +227,7 @@ public class PaymentUtils {
         final OkHttpClient client = new OkHttpClient();
         JSONObject postData = new JSONObject();
         try {
-            postData.put("uid", FirebaseAuth.getInstance().getUid());
+            postData.put("uid", SupabaseAuth.getUserId(context));
             postData.put("payment_id", paymentId);
         } catch (JSONException e) {
             e.printStackTrace();
@@ -235,11 +237,12 @@ public class PaymentUtils {
 
 
         final Request request = new Request.Builder()
-                .url(context.getResources().getString(R.string.firebase_functions_base_url) + "removeCard")
+                .url(context.getResources().getString(R.string.supabase_stripe_function_url) + "?action=remove")
                 .post(body)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("cache-control", "no-cache")
-                .addHeader("Authorization", "Your Token")
+                .addHeader("Authorization", "Bearer " + SupabaseAuth.getAccessToken(context))
+                .addHeader("apikey", context.getResources().getString(R.string.supabase_publishable_key))
                 .build();
 
         client.newCall(request).enqueue(new Callback() {

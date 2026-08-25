@@ -16,23 +16,12 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 import com.simcoder.uber.Objects.CustomerObject;
 import com.simcoder.uber.R;
-
-import org.jetbrains.annotations.NotNull;
+import com.simcoder.uber.SupabaseAuth;
+import com.simcoder.uber.SupabaseProfiles;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 
 /**
@@ -43,8 +32,6 @@ public class CustomerSettingsActivity extends AppCompatActivity {
     private EditText mNameField, mPhoneField;
 
     private ImageView mProfileImage;
-
-    private DatabaseReference mCustomerDatabase;
 
     private String userID;
 
@@ -65,9 +52,7 @@ public class CustomerSettingsActivity extends AppCompatActivity {
 
         Button mConfirm = findViewById(R.id.confirm);
 
-        FirebaseAuth mAuth = FirebaseAuth.getInstance();
-        userID = mAuth.getCurrentUser().getUid();
-        mCustomerDatabase = FirebaseDatabase.getInstance().getReference().child("Users").child("Customers").child(userID);
+        userID = SupabaseAuth.getUserId(this);
 
         mCustomer = new CustomerObject(userID);
 
@@ -104,24 +89,16 @@ public class CustomerSettingsActivity extends AppCompatActivity {
      * Fetches current user's info and populates the design elements
      */
     private void getUserInfo(){
-        mCustomerDatabase.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
-                if(!dataSnapshot.exists()){return;}
-
-                mCustomer.parseData(dataSnapshot);
-
-                mNameField.setText(mCustomer.getName());
-                mPhoneField.setText(mCustomer.getPhone());
-
-
-                if(!mCustomer.getProfileImage().equals("default"))
-                    Glide.with(getApplication()).load(mCustomer.getProfileImage()).apply(RequestOptions.circleCropTransform()).into(mProfileImage);
-
+        SupabaseProfiles.get(this, new SupabaseProfiles.Result() {
+            @Override public void onSuccess(com.google.gson.JsonObject profile) {
+                runOnUiThread(() -> {
+                    mNameField.setText(profile.get("name").getAsString());
+                    mPhoneField.setText(profile.get("phone").getAsString());
+                    if (profile.has("profile_image_url") && !profile.get("profile_image_url").getAsString().equals("default"))
+                        Glide.with(getApplication()).load(profile.get("profile_image_url").getAsString()).apply(RequestOptions.circleCropTransform()).into(mProfileImage);
+                });
             }
-
-            @Override
-            public void onCancelled(@NotNull DatabaseError databaseError) {
+            @Override public void onError(String message) {
             }
         });
     }
@@ -136,32 +113,24 @@ public class CustomerSettingsActivity extends AppCompatActivity {
         String mName = mNameField.getText().toString();
         String mPhone = mPhoneField.getText().toString();
 
-        Map<String, Object> userInfo = new HashMap<>();
-        userInfo.put("name", mName);
-        userInfo.put("phone", mPhone);
-        mCustomerDatabase.updateChildren(userInfo);
+        String userInfo = "{\"name\":\"" + mName.replace("\"", "\\\"") + "\",\"phone\":\"" + mPhone.replace("\"", "\\\"") + "\"}";
 
         if(resultUri != null) {
-
-            final StorageReference filePath = FirebaseStorage.getInstance().getReference().child("profile_images").child(userID);
-            UploadTask uploadTask = filePath.putFile(resultUri);
-
-            uploadTask.addOnFailureListener(e -> {
-                finish();
+            SupabaseProfiles.update(this, userInfo, new SupabaseProfiles.Result() {
+                @Override public void onSuccess(com.google.gson.JsonObject profile) { SupabaseProfiles.uploadImage(CustomerSettingsActivity.this, resultUri, done()); }
+                @Override public void onError(String message) { finish(); }
             });
-            uploadTask.addOnSuccessListener(taskSnapshot -> filePath.getDownloadUrl().addOnSuccessListener(uri -> {
-                Map newImage = new HashMap();
-                newImage.put("profileImageUrl", uri.toString());
-                mCustomerDatabase.updateChildren(newImage);
-
-                finish();
-            }).addOnFailureListener(exception -> {
-                finish();
-            }));
         }else{
-            finish();
+            SupabaseProfiles.update(this, userInfo, done());
         }
 
+    }
+
+    private SupabaseProfiles.Result done() {
+        return new SupabaseProfiles.Result() {
+            @Override public void onSuccess(com.google.gson.JsonObject profile) { runOnUiThread(CustomerSettingsActivity.this::finish); }
+            @Override public void onError(String message) { runOnUiThread(CustomerSettingsActivity.this::finish); }
+        };
     }
 
     @Override

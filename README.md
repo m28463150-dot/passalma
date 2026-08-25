@@ -66,6 +66,14 @@ Remplacer les valeurs de démonstration dans [strings.xml](android/app/src/main/
 
 La clé secrète Stripe doit rester dans la configuration Firebase Functions. Elle ne doit pas être placée dans l'application Android.
 
+## Migration Supabase
+
+Le projet Supabase utilisé pour la migration est configuré dans les ressources Android avec une URL et une clé publiable. Exécuter [supabase/schema.sql](supabase/schema.sql) dans l'éditeur SQL Supabase pour créer les tables et les politiques RLS.
+
+La clé `publishable` peut être présente dans l'application Android. Ne jamais utiliser une clé `service_role` ou un mot de passe PostgreSQL dans l'application ou dans GitHub.
+
+L'authentification Android (email, inscription, récupération du mot de passe et Google), la session, le routage initial et les profils utilisent Supabase. Les écrans historiques de courses, positions, stockage de photos et paiements utilisent encore Firebase tant que leurs repositories et fonctions serveur n'ont pas été migrés et testés.
+
 ## Compiler l'application
 
 Depuis la racine du dépôt :

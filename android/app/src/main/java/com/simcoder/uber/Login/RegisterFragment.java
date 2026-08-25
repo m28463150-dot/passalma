@@ -12,8 +12,8 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 
-import com.google.firebase.auth.FirebaseAuth;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -77,9 +77,12 @@ public class RegisterFragment extends Fragment implements View.OnClickListener {
         final String password = mPassword.getText().toString();
 
 
-        FirebaseAuth.getInstance().createUserWithEmailAndPassword(email, password).addOnCompleteListener(getActivity(), task -> {
-            if(!task.isSuccessful()){
-                Snackbar.make(view.findViewById(R.id.layout), "sign up error", Snackbar.LENGTH_SHORT).show();
+        SupabaseAuth.signUp(requireContext(), email, password, new SupabaseAuth.CallbackResult() {
+            @Override public void onSuccess(String userId, String email) {
+                requireActivity().runOnUiThread(() -> requireActivity().recreate());
+            }
+            @Override public void onError(String message) {
+                requireActivity().runOnUiThread(() -> Snackbar.make(view.findViewById(R.id.layout), message, Snackbar.LENGTH_SHORT).show());
             }
         });
 

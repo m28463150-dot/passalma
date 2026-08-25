@@ -4,20 +4,14 @@ import android.content.Intent;
 import android.os.Bundle;
 
 import com.addisonelliott.segmentedbutton.SegmentedButtonGroup;
-import com.google.android.gms.tasks.OnCompleteListener;
-
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.FirebaseDatabase;
 import com.simcoder.uber.R;
-
-import java.util.HashMap;
-import java.util.Map;
+import com.simcoder.uber.SupabaseAuth;
 
 
 /**
@@ -58,18 +52,18 @@ public class DetailsActivity extends AppCompatActivity implements View.OnClickLi
             accountType = "Customers";
         }
 
-        String user_id = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        Map<String, Object> newUserMap = new HashMap<>();
-        newUserMap.put("name", name);
-        newUserMap.put("profileImageUrl", "default");
-        if (accountType.equals("Drivers")) {
-            newUserMap.put("service", "type_1");
-            newUserMap.put("activated", true);
-        }
-        FirebaseDatabase.getInstance().getReference().child("Users").child(accountType).child(user_id).updateChildren(newUserMap).addOnCompleteListener((OnCompleteListener<Void>) task -> {
-            Intent intent = new Intent(DetailsActivity.this, LauncherActivity.class);
-            startActivity(intent);
-            finish();
+        String role = accountType.equals("Drivers") ? "driver" : "customer";
+        SupabaseAuth.createProfile(this, name, role, new SupabaseAuth.CallbackResult() {
+            @Override public void onSuccess(String userId, String email) {
+                runOnUiThread(() -> {
+                    Intent intent = new Intent(DetailsActivity.this, LauncherActivity.class);
+                    startActivity(intent);
+                    finish();
+                });
+            }
+            @Override public void onError(String message) {
+                runOnUiThread(() -> mName.setError(message));
+            }
         });
     }
 

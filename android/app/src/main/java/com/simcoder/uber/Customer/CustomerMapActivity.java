@@ -96,6 +96,7 @@ import com.simcoder.uber.Objects.LocationObject;
 import com.simcoder.uber.Login.LauncherActivity;
 import com.simcoder.uber.Payment.PaymentActivity;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseRides;
 import com.simcoder.uber.Objects.RideObject;
 import com.simcoder.uber.Adapters.TypeAdapter;
 import com.simcoder.uber.Objects.TypeObject;
@@ -616,6 +617,11 @@ public class CustomerMapActivity extends AppCompatActivity
             return;
         }
 
+        supabaseRideHandler.removeCallbacks(supabaseRidePoll);
+        supabaseRideHandler.post(supabaseRidePoll);
+        return;
+
+        /*
         driveHasEndedRefListener = mCurrentRide.getRideRef().addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
@@ -663,8 +669,35 @@ public class CustomerMapActivity extends AppCompatActivity
             @Override
             public void onCancelled(@NotNull DatabaseError databaseError) {
             }
-        });
+        });*/
     }
+
+    private final Handler supabaseRideHandler = new Handler();
+    private final Runnable supabaseRidePoll = new Runnable() {
+        @Override public void run() {
+            if (mCurrentRide == null) return;
+            SupabaseRides.fetchRide(CustomerMapActivity.this, mCurrentRide.getId(), new SupabaseRides.Result() {
+                @Override public void onSuccess(String payload) {
+                    runOnUiThread(() -> {
+                        if (payload.equals("[]")) return;
+                        RideObject updated = new RideObject();
+                        updated.parseSupabase(com.google.gson.JsonParser.parseString(payload).getAsJsonArray().get(0).getAsJsonObject());
+                        if (updated.getCancelled() || updated.getEnded()) {
+                            cancelHandler.removeCallbacksAndMessages(null);
+                            timeoutHandler.removeCallbacksAndMessages(null);
+                            endRide();
+                        } else if (mCurrentRide.getDriver() == null && updated.getDriver() != null) {
+                            mCurrentRide = updated;
+                            getDriverInfo();
+                            getDriverLocation();
+                        }
+                    });
+                }
+                @Override public void onError(String message) { }
+            });
+            supabaseRideHandler.postDelayed(this, 2000);
+        }
+    };
 
     /**
      * Get's most updated driver location and it's always checking for movements.
@@ -676,11 +709,30 @@ public class CustomerMapActivity extends AppCompatActivity
     private Marker mDriverMarker;
     private DatabaseReference driverLocationRef;
     private ValueEventListener driverLocationRefListener;
+    private final Handler supabaseLocationHandler = new Handler();
+    private final Runnable supabaseLocationPoll = new Runnable() {
+        @Override public void run() {
+            if (mCurrentRide != null && mCurrentRide.getDriver() != null && requestBol) {
+                SupabaseRides.fetchDriverLocation(CustomerMapActivity.this, mCurrentRide.getDriver().getId(), new SupabaseRides.Result() {
+                    @Override public void onSuccess(String payload) {
+                        runOnUiThread(() -> updateSupabaseDriverMarker(payload));
+                    }
+                    @Override public void onError(String message) { }
+                });
+                supabaseLocationHandler.postDelayed(this, 2000);
+            }
+        }
+    };
 
     private void getDriverLocation() {
         if (mCurrentRide.getDriver().getId() == null) {
             return;
         }
+        supabaseLocationHandler.removeCallbacks(supabaseLocationPoll);
+        supabaseLocationHandler.post(supabaseLocationPoll);
+        return;
+        /* Firebase listener retained below during the migration. */
+        /*
         driverLocationRef = FirebaseDatabase.getInstance().getReference().child("driversWorking").child(mCurrentRide.getDriver().getId()).child("l");
         driverLocationRefListener = driverLocationRef.addValueEventListener(new ValueEventListener() {
             @Override
@@ -730,8 +782,20 @@ public class CustomerMapActivity extends AppCompatActivity
             @Override
             public void onCancelled(@NotNull DatabaseError databaseError) {
             }
-        });
+        });*/
 
+    }
+
+    private void updateSupabaseDriverMarker(String payload) {
+        if (payload.equals("[]") || mMap == null) return;
+        com.google.gson.JsonObject row = com.google.gson.JsonParser.parseString(payload).getAsJsonArray().get(0).getAsJsonObject();
+        String point = row.get("location").getAsString().replace("SRID=4326;", "").replace("POINT(", "").replace(")", "");
+        String[] coordinates = point.trim().split(" ");
+        if (coordinates.length < 2) return;
+        LocationObject driverLocation = new LocationObject(new LatLng(Double.parseDouble(coordinates[1]), Double.parseDouble(coordinates[0])), "");
+        if (mDriverMarker != null) mDriverMarker.remove();
+        mCurrentRide.getDriver().setLocation(driverLocation);
+        mDriverMarker = mMap.addMarker(new MarkerOptions().position(driverLocation.getCoordinates()).title("your driver").icon(BitmapDescriptorFactory.fromResource(R.mipmap.ic_car)));
     }
 
     /**

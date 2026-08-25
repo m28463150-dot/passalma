@@ -15,8 +15,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import com.google.firebase.auth.FirebaseAuth;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -59,12 +59,13 @@ public class LoginFragment extends Fragment implements View.OnClickListener {
      */
     private void forgotPassword() {
         if (mEmail.getText().toString().trim().length() > 0)
-            FirebaseAuth.getInstance().sendPasswordResetEmail(mEmail.getText().toString())
-                    .addOnCompleteListener(task -> {
-                        if (task.isSuccessful()) {
+            SupabaseAuth.resetPassword(requireContext(), mEmail.getText().toString(), new SupabaseAuth.CallbackResult() {
+                        @Override public void onSuccess(String userId, String email) {
                             Snackbar.make(view.findViewById(R.id.layout), "Email Sent", Snackbar.LENGTH_LONG).show();
-                        } else
+                        }
+                        @Override public void onError(String message) {
                             Snackbar.make(view.findViewById(R.id.layout), "Something went wrong", Snackbar.LENGTH_LONG).show();
+                        }
                     });
     }
 
@@ -84,9 +85,12 @@ public class LoginFragment extends Fragment implements View.OnClickListener {
             return;
         }
 
-        FirebaseAuth.getInstance().signInWithEmailAndPassword(email, password).addOnCompleteListener(getActivity(), task -> {
-            if (!task.isSuccessful()) {
-                Snackbar.make(view.findViewById(R.id.layout), "sign in error", Snackbar.LENGTH_SHORT).show();
+        SupabaseAuth.signIn(requireContext(), email, password, new SupabaseAuth.CallbackResult() {
+            @Override public void onSuccess(String userId, String email) {
+                requireActivity().runOnUiThread(() -> requireActivity().recreate());
+            }
+            @Override public void onError(String message) {
+                requireActivity().runOnUiThread(() -> Snackbar.make(view.findViewById(R.id.layout), message, Snackbar.LENGTH_SHORT).show());
             }
         });
     }

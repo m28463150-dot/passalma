@@ -7,9 +7,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
 
 /**
  * This Activity controls the display of auth fragments of the app:
@@ -25,23 +24,11 @@ public class AuthenticationActivity extends AppCompatActivity {
 
     MenuFragment menuFragment = new MenuFragment();
 
-    private FirebaseAuth.AuthStateListener firebaseAuthListener;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_authentication);
 
-
-        //Listens for changes in the auth state
-        firebaseAuthListener = firebaseAuth -> {
-            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-            if (user != null) {
-                Intent intent = new Intent(AuthenticationActivity.this, LauncherActivity.class);
-                startActivity(intent);
-                finish();
-            }
-        };
 
         fm.beginTransaction()
                 .replace(R.id.container, menuFragment, "StartFragment")
@@ -78,15 +65,4 @@ public class AuthenticationActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        FirebaseAuth.getInstance().addAuthStateListener(firebaseAuthListener);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        FirebaseAuth.getInstance().removeAuthStateListener(firebaseAuthListener);
-    }
 }

@@ -21,6 +21,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ServerValue;
+import com.google.gson.JsonObject;
 import com.simcoder.uber.R;
 import com.simcoder.uber.Utils.SendNotification;
 import com.simcoder.uber.Utils.Utils;
@@ -196,6 +197,34 @@ public class RideObject  implements Cloneable{
             loc2.setLongitude(this.destination.getCoordinates().longitude);
 
             calculatedRideDistance = loc1.distanceTo(loc2) / 1000;
+        }
+    }
+
+    public void parseSupabase(JsonObject ride) {
+        id = ride.get("id").getAsString();
+        pickup = new LocationObject();
+        destination = new LocationObject();
+        pickup.setName(ride.get("pickup_name").getAsString());
+        destination.setName(ride.get("destination_name").getAsString());
+        pickup.setCoordinates(new LatLng(ride.get("pickup_lat").getAsDouble(), ride.get("pickup_lng").getAsDouble()));
+        destination.setCoordinates(new LatLng(ride.get("destination_lat").getAsDouble(), ride.get("destination_lng").getAsDouble()));
+        requestService = ride.get("service").getAsString();
+        String status = ride.get("status").getAsString();
+        state = "accepted".equals(status) ? 1 : "picked_up".equals(status) ? 2 : "completed".equals(status) ? 3 : 0;
+        ended = "completed".equals(status);
+        cancelled = "cancelled".equals(status);
+        if (ride.has("driver_id") && !ride.get("driver_id").isJsonNull()) mDriver = new DriverObject(ride.get("driver_id").getAsString());
+        if (ride.has("customer_id") && !ride.get("customer_id").isJsonNull()) mCustomer = new CustomerObject(ride.get("customer_id").getAsString());
+        if (ride.has("price") && !ride.get("price").isJsonNull()) ridePrice = ride.get("price").getAsDouble();
+        if (ride.has("rating") && !ride.get("rating").isJsonNull()) rating = ride.get("rating").getAsInt();
+        if (pickup.getCoordinates() != null && destination.getCoordinates() != null) {
+            Location first = new Location("");
+            first.setLatitude(pickup.getCoordinates().latitude);
+            first.setLongitude(pickup.getCoordinates().longitude);
+            Location second = new Location("");
+            second.setLatitude(destination.getCoordinates().latitude);
+            second.setLongitude(destination.getCoordinates().longitude);
+            calculatedRideDistance = first.distanceTo(second) / 1000;
         }
     }
 

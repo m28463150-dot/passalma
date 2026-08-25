@@ -16,10 +16,10 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
 import com.stripe.android.ApiResultCallback;
 import com.stripe.android.SetupIntentResult;
 import com.stripe.android.Stripe;
@@ -81,7 +81,7 @@ public class AddPaymentActivity extends AppCompatActivity {
 
         JSONObject jsonObject = new JSONObject ();
         try {
-            jsonObject.put("uid", FirebaseAuth.getInstance().getCurrentUser().getUid());
+            jsonObject.put("uid", SupabaseAuth.getUserId(this));
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -89,8 +89,10 @@ public class AddPaymentActivity extends AppCompatActivity {
         RequestBody body = RequestBody.create(mediaType, String.valueOf(jsonObject));
 
         Request request = new Request.Builder()
-                .url(getResources().getString(R.string.firebase_functions_base_url) + "create_setup_intent")
+                .url(getResources().getString(R.string.supabase_stripe_function_url) + "?action=setup")
                 .post(body)
+                .addHeader("apikey", getResources().getString(R.string.supabase_publishable_key))
+                .addHeader("Authorization", "Bearer " + SupabaseAuth.getAccessToken(this))
                 .build();
         httpClient.newCall(request)
                 .enqueue(new Callback() {

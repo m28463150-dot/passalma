@@ -16,24 +16,13 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 import com.simcoder.uber.Objects.DriverObject;
 import com.simcoder.uber.R;
+import com.simcoder.uber.SupabaseAuth;
+import com.simcoder.uber.SupabaseProfiles;
 import com.simcoder.uber.Utils.Utils;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Activity that displays the settings to the Driver
@@ -43,8 +32,6 @@ public class DriverSettingsActivity extends AppCompatActivity {
     private EditText mNameField, mPhoneField, mCarField, mLicense, mService;
 
     private ImageView mProfileImage;
-
-    private DatabaseReference mDriverDatabase;
 
     private String userID;
 
@@ -70,9 +57,7 @@ public class DriverSettingsActivity extends AppCompatActivity {
 
         Button mConfirm = findViewById(R.id.confirm);
 
-        FirebaseAuth mAuth = FirebaseAuth.getInstance();
-        userID = mAuth.getCurrentUser().getUid();
-        mDriverDatabase = FirebaseDatabase.getInstance().getReference().child("Users").child("Drivers").child(userID);
+        userID = SupabaseAuth.getUserId(this);
 
         getUserInfo();
 
@@ -111,26 +96,19 @@ public class DriverSettingsActivity extends AppCompatActivity {
      * Fetches current user's info and populates the design elements
      */
     private void getUserInfo(){
-        mDriverDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NotNull DataSnapshot dataSnapshot) {
-                if (!dataSnapshot.exists()) {
-                    return;
-                }
-                mDriver.parseData(dataSnapshot);
-                mNameField.setText(mDriver.getName());
-                mPhoneField.setText(mDriver.getPhone());
-                mCarField.setText(mDriver.getCar());
-                mLicense.setText(mDriver.getLicense());
-                mService.setText(Utils.getTypeById(DriverSettingsActivity.this, mDriver.getService()).getName());
-
-                if (!mDriver.getProfileImage().equals("default"))
-                    Glide.with(getApplication()).load(mDriver.getProfileImage()).apply(RequestOptions.circleCropTransform()).into(mProfileImage);
+        SupabaseProfiles.get(this, new SupabaseProfiles.Result() {
+            @Override public void onSuccess(com.google.gson.JsonObject profile) {
+                runOnUiThread(() -> {
+                    mNameField.setText(profile.get("name").getAsString());
+                    mPhoneField.setText(profile.get("phone").getAsString());
+                    mCarField.setText(profile.get("car").getAsString());
+                    mLicense.setText(profile.get("license").getAsString());
+                    mService.setText(Utils.getTypeById(DriverSettingsActivity.this, profile.get("service").getAsString()).getName());
+                    if (profile.has("profile_image_url") && !profile.get("profile_image_url").getAsString().equals("default"))
+                        Glide.with(getApplication()).load(profile.get("profile_image_url").getAsString()).apply(RequestOptions.circleCropTransform()).into(mProfileImage);
+                });
             }
-
-            @Override
-            public void onCancelled(@NotNull DatabaseError databaseError) {
-            }
+            @Override public void onError(String message) { }
         });
     }
 
@@ -148,35 +126,26 @@ public class DriverSettingsActivity extends AppCompatActivity {
         String license = mLicense.getText().toString();
         String service = mDriver.getService();
 
-        Map<String, Object> userInfo = new HashMap<String, Object>();
-        userInfo.put("name", name);
-        userInfo.put("phone", phone);
-        userInfo.put("car", car);
-        userInfo.put("license", license);
-        userInfo.put("service", service);
-        mDriverDatabase.updateChildren(userInfo);
+        String userInfo = "{\"name\":\"" + name.replace("\"", "\\\"") + "\",\"phone\":\"" + phone.replace("\"", "\\\"")
+                + "\",\"car\":\"" + car.replace("\"", "\\\"") + "\",\"license\":\"" + license.replace("\"", "\\\"")
+                + "\",\"service\":\"" + service.replace("\"", "\\\"") + "\"}";
 
         if(resultUri != null) {
-
-            final StorageReference filePath = FirebaseStorage.getInstance().getReference().child("profile_images").child(userID);
-
-            UploadTask uploadTask = filePath.putFile(resultUri);
-            uploadTask.addOnFailureListener(e -> {
-                finish();
+            SupabaseProfiles.update(this, userInfo, new SupabaseProfiles.Result() {
+                @Override public void onSuccess(com.google.gson.JsonObject profile) { SupabaseProfiles.uploadImage(DriverSettingsActivity.this, resultUri, done()); }
+                @Override public void onError(String message) { finish(); }
             });
-            uploadTask.addOnSuccessListener(taskSnapshot -> filePath.getDownloadUrl().addOnSuccessListener(uri -> {
-                Map newImage = new HashMap();
-                newImage.put("profileImageUrl", uri.toString());
-                mDriverDatabase.updateChildren(newImage);
-
-                finish();
-            }).addOnFailureListener(exception -> {
-                finish();
-            }));
         }else{
-            finish();
+            SupabaseProfiles.update(this, userInfo, done());
         }
 
+    }
+
+    private SupabaseProfiles.Result done() {
+        return new SupabaseProfiles.Result() {
+            @Override public void onSuccess(com.google.gson.JsonObject profile) { runOnUiThread(DriverSettingsActivity.this::finish); }
+            @Override public void onError(String message) { runOnUiThread(DriverSettingsActivity.this::finish); }
+        };
     }
 
     @Override
