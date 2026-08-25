@@ -8,3 +8,4 @@ android/build
 android/captures
 android/.externalNativeBuild
 android/app/build
+supabase/.temp/
